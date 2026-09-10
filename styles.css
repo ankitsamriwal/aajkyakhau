@@ -81,7 +81,7 @@ h1,h2,h3{margin:0;font-weight:700}
 .switch::after{content:'';position:absolute;top:4px;left:4px;width:20px;height:20px;border-radius:50%;background:var(--card);box-shadow:var(--raise-sm);transition:left .15s}
 .switch.on::after{left:22px;background:var(--accent)}
 /* today food carousel - fills the blank space on home */
-.foodcar{margin:18px -16px 0;overflow:hidden;padding:20px 16px}
+.foodcar{margin:6px -16px 4px;overflow:hidden;padding:14px 16px 18px}
 .ftrack{display:flex;gap:14px;width:max-content;animation:fslide 38s linear infinite}
 .fcard{flex:0 0 auto;width:132px;background:var(--card);border-radius:18px;box-shadow:var(--shadow);padding:8px}
 .fcard img{width:100%;aspect-ratio:4/3;object-fit:cover;border-radius:12px;display:block;background:#dde4f0}

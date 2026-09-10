@@ -110,29 +110,28 @@ window.finishOnboard=()=>{OB.p.done=true;S={prefs:OB.p,cook:{},roll:{seen:[]}};s
 function renderToday(){
   const slot=slotNow();const p=S.prefs;
   let h=`<div class="largetitle"><div class="gt">${greet()}</div><h1>${MEALS[slot]} time</h1></div>`;
+  h+=foodCarHTML();
   const cookFirst=p.style!=='out';
   const cookCard=`<button class="hero" onclick="go('cook')">
     <div class="hemoji">&#129348;</div>
-    <div class="htxt"><b>Cook at home</b><span>Snap your fridge or ingredients - get 2-3 recipes you can make right now, with steps and prep time.</span></div>
+    <div class="htxt"><b>Eat at home</b><span>Snap the fridge, get recipes.</span></div>
     <span class="hchev">&#8250;</span></button>`;
   const outCard=`<button class="hero alt" onclick="go('out')">
     <div class="hemoji">&#127839;</div>
-    <div class="htxt"><b>Eating out</b><span>Roll for a dish that fits your taste - ${p.cuisines.map(CNAME).slice(0,3).join(', ')}${p.cuisines.length>3?' and more':''}.</span></div>
+    <div class="htxt"><b>Eat out</b><span>Roll for a dish.</span></div>
     <span class="hchev">&#8250;</span></button>`;
   h+=cookFirst?cookCard+outCard:outCard+cookCard;
-  h+=`<div class="hintcard"><b>${MEALS[slot]} quick take</b><span id="quicktake">${esc(quickTake(slot))}</span></div>`;
   ensurePlan();
   if(S.prefs.groReminders){
     const e=(S.week.slots||{})[dstr(1)]||{};
     const names=['b','l','d'].map(sl=>e[sl]!=null?RECIPES[e[sl]].n:null).filter(Boolean);
     if(names.length){const sv=WK.scope;WK.scope='tomorrow';const n=groceryList().filter(([g])=>!S.week.have[g]).length;WK.scope=sv;
       h+=`<div class="hintcard nudge"><b>Tomorrow's groceries</b><span>${esc(names.join(', '))} - ${n} item${n===1?'':'s'} to order.</span><div class="gacts"><button class="cta ghost" onclick="go('week')">Open list</button><button class="cta ghost" onclick="shareGroceries('tomorrow')">Share</button></div></div>`}}
-  h+=foodCarHTML();
   $('#view').innerHTML=h;
 }
-const FOOD_IMGS=[["Paneer curry","1585937421612-70a008356fbe"],["Pizza","1565299624946-b28f40a0ae38"],["Salad bowl","1546069901-ba9599a7e63c"],["Pancakes","1567620905732-2d1ec7ab7445"],["Veggie bowl","1540189549336-e6e99c3679fe"],["Skewers","1555939594-58d7cb561ad1"],["Dinner plate","1414235077428-338989a2e8c0"],["Green salad","1512621776951-a57141f2eefd"],["Pasta","1473093295043-cdd812d0e601"],["Burger","1550547660-d9450f859349"],["Home plate","1504674900247-0877df9cc836"],["Thali","1606491956689-2ea866880c84"]];
+const FOOD_IMGS=["1504674900247-0877df9cc836","1473093295043-cdd812d0e601","1589302168068-964664d93dc0","1585032226651-759b368d7246","1528735602780-2552fd46c7af","1577805947697-89e18249d767","1565299624946-b28f40a0ae38"];
 function foodCarHTML(){
-  const cards=FOOD_IMGS.map(([t,id])=>`<div class="fcard"><img loading="lazy" src="https://images.unsplash.com/photo-${id}?auto=format&fit=crop&w=400&q=60" alt="${t}"><div class="l">${t}</div></div>`).join('');
+  const cards=FOOD_IMGS.map(id=>`<div class="fcard"><img loading="lazy" src="https://images.unsplash.com/photo-${id}?auto=format&fit=crop&w=400&q=60" alt=""></div>`).join('');
   return `<div class="foodcar"><div class="ftrack">${cards}${cards}</div></div>`;
 }
 function quickTake(slot){
