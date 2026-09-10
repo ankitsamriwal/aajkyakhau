@@ -72,6 +72,8 @@ function prefsTxt(){const d={veg:'strictly vegetarian (no meat, fish or eggs)',n
 async function render(){
   nav();
   const v=$('#view');
+  const keepY=window.scrollY; // in-place updates (have-toggles, meal taps) must not jump the screen
+  requestAnimationFrame(()=>{ if(SCREEN==='week') window.scrollTo(0, keepY); });
   if(!S||!S.prefs||!S.prefs.done){renderOnboard();return}
   if(SCREEN==='today')renderToday();
   else if(SCREEN==='week')renderWeek();
