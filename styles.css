@@ -64,10 +64,11 @@ h1,h2,h3{margin:0;font-weight:700}
 .wrow.empty{opacity:.6}
 .seg{display:flex;background:var(--bg);box-shadow:var(--press);border-radius:999px;padding:4px;gap:4px;margin-top:8px}
 .seg button{flex:1;border-radius:999px;padding:7px 10px;font-size:.78rem;font-weight:600;color:var(--sub);text-align:center}
-.seg button.on{background:var(--card);box-shadow:var(--raise-sm);color:var(--ink)}
+.seg button.on{background:var(--accent);box-shadow:var(--raise-sm);color:#fff}
 .gro{display:flex;align-items:center;gap:10px;padding:9px 8px;border-bottom:1px solid var(--line);font-size:.9rem;width:100%;border-radius:10px}
 .gro .box{width:20px;height:20px;border-radius:7px;background:var(--bg);box-shadow:var(--press);flex:0 0 auto;display:flex;align-items:center;justify-content:center;font-size:.72rem;color:var(--accent)}
-.gro.have .box::after{content:'\2713'}
+.gro.have .box{background:var(--accent);box-shadow:none}
+.gro.have .box::after{content:'\2713';color:#fff}
 .gro.have .gi{text-decoration:line-through;color:var(--sub)}
 .gro .gi{font-weight:600;text-transform:capitalize}
 .gro .gu{font-size:.66rem;color:var(--sub);margin-left:auto;text-align:right;max-width:46%}
@@ -79,7 +80,8 @@ h1,h2,h3{margin:0;font-weight:700}
 .togglerow b{font-size:.88rem}
 .switch{width:46px;height:28px;border-radius:999px;background:var(--bg);box-shadow:var(--press);position:relative;flex:0 0 auto}
 .switch::after{content:'';position:absolute;top:4px;left:4px;width:20px;height:20px;border-radius:50%;background:var(--card);box-shadow:var(--raise-sm);transition:left .15s}
-.switch.on::after{left:22px;background:var(--accent)}
+.switch.on{background:var(--accent)}
+.switch.on::after{left:22px;background:#fff}
 /* today food carousel - fills the blank space on home */
 .foodcar{margin:6px -16px 4px;overflow:hidden;padding:14px 16px 18px}
 .ftrack{display:flex;gap:14px;width:max-content;animation:fslide 38s linear infinite}
@@ -94,7 +96,7 @@ h1,h2,h3{margin:0;font-weight:700}
 .pick b{font-size:16px}
 .pick span{font-size:13px;color:var(--sub)}
 .pick.sm{padding:11px 16px}
-.pick.on{color:var(--accent-ink)}.pick.on b{color:var(--accent-ink)}
+.pick.on{background:var(--accent);color:#fff}.pick.on b{color:#fff}
 
 /* chips */
 .chips{display:flex;flex-wrap:wrap;gap:8px;margin-top:10px}
