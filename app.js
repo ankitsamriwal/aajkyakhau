@@ -21,13 +21,13 @@ function cuisineOk(item){return S.prefs.cuisines.includes(item.c)}
 /* ---------- routing / back ---------- */
 let SCREEN='today',PARAM=null,HIST=[],FRESH_NAV=true;
 const EMBED=window.self!==window.top;
-function navNote(){if(EMBED){try{parent.postMessage({t:'ak-nav',depth:HIST.length},'*')}catch(e){}}}
+function navNote(){if(EMBED){try{parent.postMessage({t:'ak-nav',depth:HIST.length+(SHEET?1:0)},'*')}catch(e){}}}
 if(EMBED){window.addEventListener('message',e=>{const d=e.data||{};if(d.t==='ak-back')back()})}
 
 function go(sc,p){if(SCREEN===sc&&JSON.stringify(PARAM||null)===JSON.stringify(p||null)){render();return}FRESH_NAV=true;
   HIST.push([SCREEN,PARAM]);if(!EMBED){try{history.pushState({sc,p},'')}catch(e){}}
   SCREEN=sc;PARAM=p||null;render();navNote()}
-function back(){const h=HIST.pop();if(h){SCREEN=h[0];PARAM=h[1]}else{SCREEN='today';PARAM=null}FRESH_NAV=true;render();navNote()}
+function back(){if(typeof SHEET!=='undefined'&&SHEET){sheetClose();return}const h=HIST.pop();if(h){SCREEN=h[0];PARAM=h[1]}else{SCREEN='today';PARAM=null}FRESH_NAV=true;render();navNote()}
 if(!EMBED){window.addEventListener('popstate',()=>{back()});
 try{history.replaceState({sc:'today'},'')}catch(e){}}
 
@@ -297,7 +297,7 @@ function ensurePlan(){
   if(!S.week.have)S.week.have={};
   for(let o=0;o<7;o++){const ds=dstr(o);
     if(!S.week.slots[ds]){const e={};
-      ['b','l','d'].forEach(sl=>{const p=poolFor(sl);if(p.length)e[sl]=p[Math.floor(Math.random()*p.length)]});
+      ['b','l','d'].forEach(sl=>{const p=poolFor(sl);if(!(sl in e)&&p.length)e[sl]=p[Math.floor(Math.random()*p.length)]});
       S.week.slots[ds]=e}}
   const keep={};for(let o=0;o<7;o++)keep[dstr(o)]=1;
   Object.keys(S.week.slots).forEach(k=>{if(!keep[k])delete S.week.slots[k]});
@@ -347,8 +347,48 @@ function groceryList(){
 function focusIngs(){return WK.focus==null?null:new Set(RECIPES[WK.focus].ing)}
 function wkHover(i){WK.focus=i;paintHl()}
 function wkBlur(){if(!WK.pinned){WK.focus=null;paintHl()}}
-function wkTap(i){WK.pinned=!(WK.pinned&&WK.focus===i);WK.focus=WK.pinned?i:null;paintHl();
-  if(WK.pinned){const g=document.getElementById('grocard');if(g)g.scrollIntoView({behavior:'smooth'})}}
+let SHEET=null;
+function wkTap(i,ds,sl){SHEET={ds:ds,sl:sl};WK.pinned=false;WK.focus=i;paintHl();renderSheet();navNote()}
+function wkReadd(ds,sl){const p=poolFor(sl);if(!p.length)return;const i=p[Math.floor(Math.random()*p.length)];
+  S.week.slots[ds][sl]=i;save();lastSync='';pushSync();render();wkTap(i,ds,sl)}
+function sheetEl(){let w=document.getElementById('sheetwrap');if(!w){w=document.createElement('div');w.id='sheetwrap';document.body.appendChild(w)}return w}
+function sheetClose(){if(!SHEET)return;SHEET=null;WK.focus=null;paintHl();renderSheet();navNote()}
+function sheetDayOff(){return Math.round((new Date(SHEET.ds+'T12:00:00')-new Date(dstr(0)+'T12:00:00'))/86400000)}
+function renderSheet(){
+  const w=sheetEl();
+  if(!SHEET){w.className='';w.innerHTML='';document.body.style.overflow='';return}
+  const e=(S.week&&S.week.slots&&S.week.slots[SHEET.ds])||{};const i=e[SHEET.sl];
+  if(i==null){SHEET=null;WK.focus=null;w.className='';w.innerHTML='';document.body.style.overflow='';return}
+  const r=RECIPES[i];const have=S.week.have||{};
+  const rows=r.ing.map(g=>`<button class="gro ${have[g]?'have':''}" onclick="sheetHave('${esc(g)}')"><span class="box"></span><span class="gi">${esc(g)}</span>${have[g]?'<span class="gu">have it</span>':''}</button>`).join('');
+  w.className='open';document.body.style.overflow='hidden';
+  w.innerHTML=`<div class="scrim" onclick="sheetClose()"></div>
+  <div class="sheet" id="sheet">
+    <div class="sh-handle"></div>
+    <div class="sh-head"><div class="rtop"><b class="rname">${esc(r.n)}</b>${vegBadge(r)}</div>
+      <div class="sub" style="margin-top:2px">${dlabel(sheetDayOff())} &middot; ${MEALS[SHEET.sl]}</div>
+      <div class="rmeta"><span>&#9200; ${r.t||r.time_min} min</span><span>${esc(r.diff||'')}</span><span>${esc(CNAME(r.c)||'')}</span></div></div>
+    <h3>Ingredients</h3>
+    <div class="sh-ings">${rows}</div>
+    <div class="sub" style="margin:0 0 10px">Tap what you already have - it drops off the order list.</div>
+    <div class="gacts"><button class="cta ghost" onclick="sheetSwap()">&#10227; Swap meal</button><button class="cta ghost" onclick="sheetRemove()">Remove</button></div>
+    <div class="gacts"><button class="cta" onclick="sheetCopy()">Copy ingredients</button><button class="cta ghost" onclick="sheetWa()">WhatsApp</button></div>
+    <div class="togglerow"><div><b>Grocery nudges</b><div class="sub">8am reminder with tomorrow's list.</div></div><button class="switch ${S.prefs.groReminders?'on':''}" onclick="sheetRem()" aria-label="Toggle grocery nudges"></button></div>
+  </div>`;
+  const sh=document.getElementById('sheet');let sy=null,dy=0;
+  sh.addEventListener('touchstart',e=>{if(sh.scrollTop>2){sy=null;return}sy=e.touches[0].clientY;dy=0},{passive:true});
+  sh.addEventListener('touchmove',e=>{if(sy==null)return;dy=e.touches[0].clientY-sy;if(dy>0)sh.style.transform='translate(-50%,'+dy+'px)'},{passive:true});
+  sh.addEventListener('touchend',()=>{if(dy>90){sheetClose()}else{sh.style.transform=''}sy=null;dy=0});
+}
+function sheetHave(g){S.week.have[g]=S.week.have[g]?0:1;save();render();paintHl();renderSheet()}
+function sheetSwap(){rerollSlot(SHEET.ds,SHEET.sl);lastSync='';pushSync();renderSheet()}
+function sheetRemove(){S.week.slots[SHEET.ds][SHEET.sl]=null;save();lastSync='';pushSync();sheetClose();render()}
+function sheetText(){const e=S.week.slots[SHEET.ds]||{};const r=RECIPES[e[SHEET.sl]];
+  const items=r.ing.filter(g=>!(S.week.have&&S.week.have[g]));
+  return `${r.n} (${dlabel(sheetDayOff())}, ${MEALS[SHEET.sl]}):\n`+(items.length?items.map(g=>'- '+g).join('\n'):'- nothing left to order')}
+async function sheetCopy(){const t=sheetText();try{await navigator.clipboard.writeText(t);toast('Ingredients copied')}catch(e){toast('Copy failed')}sheetClose()}
+function sheetWa(){open('https://wa.me/?text='+encodeURIComponent(sheetText()),'_blank');sheetClose()}
+function sheetRem(){wkRem();renderSheet()}
 function paintHl(){const fi=focusIngs();
   document.querySelectorAll('.gro').forEach(el=>el.classList.toggle('hl',fi?fi.has(el.dataset.ing):false));
   document.querySelectorAll('.wrow').forEach(el=>el.classList.toggle('hl',WK.focus!=null&&+el.dataset.i===WK.focus))}
@@ -370,16 +410,19 @@ function renderWeek(){
   for(let o=0;o<7;o++){const ds=dstr(o);const e=S.week.slots[ds]||{};
     h+=`<div class="daycard"><div class="dh"><b>${dlabel(o)}</b><span>${new Date(Date.now()+o*86400000).toLocaleDateString('en-US',{month:'short',day:'numeric'})}</span></div>`;
     ['b','l','d'].forEach(sl=>{const i=e[sl];
-      if(i==null){h+=`<div class="wrow empty"><span class="m">${MEALS[sl]}</span><span class="rn">No match - widen cuisines in You</span></div>`;return}
+      if(i==null){
+        if(sl in e){h+=`<button class="wrow empty" onclick="wkReadd('${ds}','${sl}')"><span class="m">${MEALS[sl]}</span><span class="rn">Removed - tap to add a meal</span></button>`}
+        else{h+=`<div class="wrow empty"><span class="m">${MEALS[sl]}</span><span class="rn">No match - widen cuisines in You</span></div>`}
+        return}
       const r=RECIPES[i];
-      h+=`<button class="wrow" data-i="${i}" onmouseenter="wkHover(${i})" onmouseleave="wkBlur()" onclick="wkTap(${i})"><span class="m">${MEALS[sl]}</span><span class="rn">${esc(r.n)}</span><span class="rt">${r.t}m</span><span class="rr" title="Swap" onclick="event.stopPropagation();rerollSlot('${ds}','${sl}')">&#10227;</span></button>`});
+      h+=`<button class="wrow" data-i="${i}" onmouseenter="wkHover(${i})" onmouseleave="wkBlur()" onclick="wkTap(${i},'${ds}','${sl}')"><span class="m">${MEALS[sl]}</span><span class="rn">${esc(r.n)}</span><span class="rt">${r.t}m</span><span class="rr" title="Swap" onclick="event.stopPropagation();rerollSlot('${ds}','${sl}')">&#10227;</span></button>`});
     h+=`</div>`;
   }
   const list=groceryList();
   const toOrder=list.filter(([g])=>!S.week.have[g]);
   h+=`<div class="card" id="grocard"><h3>Groceries</h3>
     <div class="seg"><button class="${WK.scope==='tomorrow'?'on':''}" onclick="wkScope('tomorrow')">Tomorrow</button><button class="${WK.scope==='week'?'on':''}" onclick="wkScope('week')">This week</button></div>
-    <div class="sub" style="margin:8px 0 2px">Tap what you already have - the rest is your order list. Tap a meal above to spotlight its ingredients.</div>
+    <div class="sub" style="margin:8px 0 2px">Tap what you already have - the rest is your order list. Tap a meal above for its ingredients and actions.</div>
     ${list.map(([g,rs])=>`<button class="gro ${S.week.have[g]?'have':''}" data-ing="${esc(g)}" onclick="wkHave('${esc(g)}')"><span class="box"></span><span class="gi">${esc(g)}</span><span class="gu">${esc(rs.join(', '))}</span></button>`).join('')||'<div class="sub">No recipes planned.</div>'}
     <div class="gacts"><button class="cta" onclick="shareGroceries('${WK.scope}')">Share ${toOrder.length} to-order item${toOrder.length===1?'':'s'}</button><button class="cta ghost" onclick="waGroceries('${WK.scope}')">WhatsApp</button></div>
     <div class="togglerow"><div><b>Grocery nudges</b><div class="sub">Tomorrow's list greets you on the Today tab.</div></div><button class="switch ${S.prefs.groReminders?'on':''}" onclick="wkRem()" aria-label="Toggle grocery nudges"></button></div>
