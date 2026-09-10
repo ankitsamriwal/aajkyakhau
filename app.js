@@ -20,12 +20,16 @@ function cuisineOk(item){return S.prefs.cuisines.includes(item.c)}
 
 /* ---------- routing / back ---------- */
 let SCREEN='today',PARAM=null,HIST=[];
+const EMBED=window.self!==window.top;
+function navNote(){if(EMBED){try{parent.postMessage({t:'ak-nav',depth:HIST.length},'*')}catch(e){}}}
+if(EMBED){window.addEventListener('message',e=>{const d=e.data||{};if(d.t==='ak-back')back()})}
+
 function go(sc,p){if(SCREEN===sc&&JSON.stringify(PARAM||null)===JSON.stringify(p||null)){render();return}
-  HIST.push([SCREEN,PARAM]);try{history.pushState({sc,p},'')}catch(e){}
-  SCREEN=sc;PARAM=p||null;render()}
-function back(){const h=HIST.pop();if(h){SCREEN=h[0];PARAM=h[1]}else{SCREEN='today';PARAM=null}render()}
-window.addEventListener('popstate',()=>{back()});
-try{history.replaceState({sc:'today'},'')}catch(e){}
+  HIST.push([SCREEN,PARAM]);if(!EMBED){try{history.pushState({sc,p},'')}catch(e){}}
+  SCREEN=sc;PARAM=p||null;render();navNote()}
+function back(){const h=HIST.pop();if(h){SCREEN=h[0];PARAM=h[1]}else{SCREEN='today';PARAM=null}render();navNote()}
+if(!EMBED){window.addEventListener('popstate',()=>{back()});
+try{history.replaceState({sc:'today'},'')}catch(e){}}
 
 /* ---------- shared ui ---------- */
 function slotNow(){const h=new Date().getHours();for(const [a,b,id] of SLOT_HOURS){if(h>=a&&h<b)return id}return 'n'}
