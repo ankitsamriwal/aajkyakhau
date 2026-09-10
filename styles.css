@@ -50,6 +50,13 @@ h1,h2,h3{margin:0;font-weight:700}
 .obemoji{font-size:52px}
 .obhero h1{font-size:30px;letter-spacing:-.02em;margin:8px 0 6px}
 .obsub{color:var(--sub);font-size:15px;max-width:300px;margin:0 auto}
+/* today food carousel - fills the blank space on home */
+.foodcar{margin:18px -16px 0;overflow:hidden;padding:20px 16px}
+.ftrack{display:flex;gap:14px;width:max-content;animation:fslide 38s linear infinite}
+.fcard{flex:0 0 auto;width:132px;background:var(--card);border-radius:18px;box-shadow:var(--shadow);padding:8px}
+.fcard img{width:100%;aspect-ratio:4/3;object-fit:cover;border-radius:12px;display:block;background:#dde4f0}
+.fcard .l{font-size:.68rem;font-weight:600;color:var(--sub);margin-top:6px;text-align:center}
+@keyframes fslide{to{transform:translateX(-50%)}}
 .stepsdots{display:flex;gap:6px;justify-content:center;margin-top:16px}
 .st{width:22px;height:4px;border-radius:2px;background:#c8ccd6}
 .st.on{background:var(--accent)}
