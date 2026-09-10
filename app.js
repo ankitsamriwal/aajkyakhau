@@ -142,7 +142,7 @@ function renderCook(){
   h+=`<button class="linkbtn" onclick="manualPick()">No photo? Pick your ingredients instead</button>`;
   $('#view').innerHTML=h;
 }
-window.pickCookPhoto=()=>{let i=document.getElementById('cookfile');if(!i){i=document.createElement('input');i.id='cookfile';i.type='file';i.accept='image/*';i.style.display='none';document.body.appendChild(i)}i.onchange=async()=>{
+window.pickCookPhoto=()=>{let i=document.getElementById('cookfile');if(!i){i=document.createElement('input');i.id='cookfile';i.type='file';i.accept='image/*';i.setAttribute('capture','environment');i.style.display='none';document.body.appendChild(i)}i.onchange=async()=>{
   const f=i.files[0];if(!f)return;
   try{COOK.photo=await downscale(f,1200);COOK.err=null;renderCook()}catch(e){COOK.err='Could not read that photo - try another one.';renderCook()}
 };i.click()};
