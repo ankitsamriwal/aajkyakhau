@@ -50,7 +50,7 @@ async function askWorker(sys,userText,b64img){
   const parts=[{text:userText}];
   if(b64img)parts.push({inline_data:{mime_type:'image/jpeg',data:b64img}});
   const body={system_instruction:{parts:[{text:sys}]},contents:[{role:'user',parts}]};
-  const ac=new AbortController();const to=setTimeout(()=>ac.abort(),45000);
+  const ac=new AbortController();const to=setTimeout(()=>ac.abort(),90000);
   try{
     const r=await fetch(WORKER,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(body),signal:ac.signal});
     clearTimeout(to);
@@ -165,7 +165,7 @@ Set egg:true when the dish contains eggs. Rules: exactly 2 or 3 recipes the pers
     const a=await askWorker(sys,'What can I cook from this?',b64);
     if(!a||!Array.isArray(a.recipes)||!a.recipes.length)throw new Error('bad');
     a.recipes=a.recipes.filter(r=>r&&r.name&&Array.isArray(r.steps)&&r.steps.length).slice(0,3)
-      .map(r=>({n:String(r.name),c:S.prefs.cuisines.includes(r.cuisine)?r.cuisine:S.prefs.cuisines[0],t:Math.max(5,parseInt(r.time_min)||25),diff:(r.difficulty==='Medium'?'Medium':'Easy'),veg:!!r.veg,vegan:!!r.vegan,egg:!!r.egg,uses:(r.uses||[]).slice(0,8),needs_extra:(r.needs_extra||[]).slice(0,6),steps:r.steps.slice(0,8)}));
+      .map(r=>({n:String(r.name),c:S.prefs.cuisines.includes(r.cuisine)?r.cuisine:S.prefs.cuisines[0],t:Math.max(5,parseInt(r.time_min)||25),diff:(r.difficulty==='Medium'?'Medium':'Easy'),veg:!!r.veg,vegan:!!r.vegan,egg:!!r.egg||(!r.veg&&/egg|anda/i.test(String(r.name)+' '+(r.uses||[]).join(' '))),uses:(r.uses||[]).slice(0,8),needs_extra:(r.needs_extra||[]).slice(0,6),steps:r.steps.slice(0,8)}));
     if(!a.recipes.length)throw new Error('bad');
     COOK.busy=false;COOK.result={ai:true,ingredients:a.ingredients_detected||[],recipes:a.recipes};
     go('cookresult');
