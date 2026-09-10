@@ -118,7 +118,7 @@ function renderToday(){
     <div class="htxt"><b>Eating out</b><span>Roll for a dish that fits your taste - ${p.cuisines.map(CNAME).slice(0,3).join(', ')}${p.cuisines.length>3?' and more':''}.</span></div>
     <span class="hchev">&#8250;</span></button>`;
   h+=cookFirst?cookCard+outCard:outCard+cookCard;
-  h+=`<div class="hintcard"><b>'+MEALS[slot]+' quick take</b><span id="quicktake">${esc(quickTake(slot))}</span></div>`;
+  h+=`<div class="hintcard"><b>${MEALS[slot]} quick take</b><span id="quicktake">${esc(quickTake(slot))}</span></div>`;
   $('#view').innerHTML=h;
 }
 function quickTake(slot){
