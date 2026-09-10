@@ -19,15 +19,15 @@ function dietOk(item){const d=S.prefs.diet;
 function cuisineOk(item){return S.prefs.cuisines.includes(item.c)}
 
 /* ---------- routing / back ---------- */
-let SCREEN='today',PARAM=null,HIST=[];
+let SCREEN='today',PARAM=null,HIST=[],FRESH_NAV=true;
 const EMBED=window.self!==window.top;
 function navNote(){if(EMBED){try{parent.postMessage({t:'ak-nav',depth:HIST.length},'*')}catch(e){}}}
 if(EMBED){window.addEventListener('message',e=>{const d=e.data||{};if(d.t==='ak-back')back()})}
 
-function go(sc,p){if(SCREEN===sc&&JSON.stringify(PARAM||null)===JSON.stringify(p||null)){render();return}
+function go(sc,p){if(SCREEN===sc&&JSON.stringify(PARAM||null)===JSON.stringify(p||null)){render();return}FRESH_NAV=true;
   HIST.push([SCREEN,PARAM]);if(!EMBED){try{history.pushState({sc,p},'')}catch(e){}}
   SCREEN=sc;PARAM=p||null;render();navNote()}
-function back(){const h=HIST.pop();if(h){SCREEN=h[0];PARAM=h[1]}else{SCREEN='today';PARAM=null}render();navNote()}
+function back(){const h=HIST.pop();if(h){SCREEN=h[0];PARAM=h[1]}else{SCREEN='today';PARAM=null}FRESH_NAV=true;render();navNote()}
 if(!EMBED){window.addEventListener('popstate',()=>{back()});
 try{history.replaceState({sc:'today'},'')}catch(e){}}
 
@@ -72,8 +72,8 @@ function prefsTxt(){const d={veg:'strictly vegetarian (no meat, fish or eggs)',n
 async function render(){
   nav();
   const v=$('#view');
-  const keepY=window.scrollY; // in-place updates (have-toggles, meal taps) must not jump the screen
-  requestAnimationFrame(()=>{ if(SCREEN==='week') window.scrollTo(0, keepY); });
+  const keepY=FRESH_NAV?0:window.scrollY;FRESH_NAV=false; // in-place updates (have-toggles, meal taps) must not jump the screen
+  requestAnimationFrame(()=>{ window.scrollTo(0, keepY); });
   if(!S||!S.prefs||!S.prefs.done){renderOnboard();return}
   if(SCREEN==='today')renderToday();
   else if(SCREEN==='week')renderWeek();
