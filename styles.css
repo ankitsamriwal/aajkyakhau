@@ -128,3 +128,11 @@ ol.steps li{margin:10px 0;font-size:15px;line-height:1.5}
 /* toast */
 .toast{position:fixed;left:50%;bottom:96px;transform:translateX(-50%);background:var(--ink);color:#fff;font-size:14px;padding:11px 18px;border-radius:999px;box-shadow:var(--shadow);z-index:50;animation:tin .2s}
 @keyframes tin{from{opacity:0;transform:translateX(-50%) translateY(6px)}}
+
+/* cook photo flow */
+.photobtns{display:flex;flex-direction:column;gap:10px;margin:4px 0 2px}
+.photobtns .cta{margin-top:0}
+.photostatus{margin:10px 2px 0;font-size:14px;font-weight:600;color:#1d7a35}
+.scanrow{display:flex;align-items:center;gap:12px;text-align:left}
+.scanrow img{width:56px;height:56px;border-radius:12px;object-fit:cover;flex:none}
+.sub.sm{font-size:12.5px}

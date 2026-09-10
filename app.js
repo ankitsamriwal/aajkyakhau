@@ -131,26 +131,51 @@ function quickTake(slot){
 /* ----- cook ----- */
 let COOK=null;
 function renderCook(){
-  if(!COOK)COOK={photo:null,busy:false,err:null,mode:null};
+  if(!COOK)COOK={photo:S.draftPhoto||null,busy:false,err:null,mode:null};
   const st=COOK;
   let h=`<div class="largetitle"><div class="gt">Cook at home</div><h1>What is in the kitchen?</h1></div>`;
   h+=`<div class="card"><h3>Snap the fridge or the shelf</h3><div class="sub">Open the fridge, or lay the ingredients on the counter. The chef reads the photo and suggests 2-3 recipes with prep time, ingredients and full method - text only, no videos.</div></div>`;
-  h+=`<div class="photopick" onclick="pickCookPhoto()">${st.photo?`<img src="${st.photo}">`:'<span class="big">&#128247;</span><span>Tap to photograph or upload</span>'}</div>`;
-  if(st.busy)h+=`<div class="notice">The chef is reading your photo<span class="loadingdots"></span></div>`;
+  if(st.photo){
+    h+=`<div class="photopick">${st.photo?`<img src="${st.photo}">`:''}</div>
+    <div class="photostatus">&#9989; Photo ready${st.busy?' - the chef is reading it<span class="loadingdots"></span>':''}</div>
+    ${st.busy?'':`<div class="photobtns"><button class="cta" onclick="analyzeCook()">Suggest recipes</button>
+    <button class="cta ghost" onclick="retakePhoto()">Retake / change photo</button></div>`}`;
+  }else{
+    h+=`<div class="photobtns">
+      <button class="cta" onclick="pickCookPhoto('camera')">&#128247; Click a photo</button>
+      <button class="cta ghost" onclick="pickCookPhoto('gallery')">&#128444; Upload from gallery</button>
+    </div>`;
+  }
+  if(st.busy&&!st.photo)h+=`<div class="notice">The chef is reading your photo<span class="loadingdots"></span></div>`;
   if(st.err)h+=`<div class="notice warn">${esc(st.err)}</div>`;
-  if(st.photo&&!st.busy)h+=`<button class="cta" onclick="analyzeCook()">Suggest recipes</button>`;
   h+=`<button class="linkbtn" onclick="manualPick()">No photo? Pick your ingredients instead</button>`;
+  const scans=S.scans||[];
+  if(scans.length){
+    h+=`<div class="secttl"><h2>Past scans</h2></div>`+scans.map(s=>`<button class="card scanrow" onclick="openScan(${s.id})"><img src="${s.thumb}"><div style="flex:1"><b>${s.recipes.length} recipe${s.recipes.length>1?'s':''}</b><div class="sub">${esc(s.recipes.map(r=>r.n).slice(0,2).join(', '))}</div><div class="sub sm">${fmtScanDate(s.ts)}</div></div><span class="hchev">&#8250;</span></button>`).join('');
+  }
   $('#view').innerHTML=h;
 }
-window.pickCookPhoto=()=>{let i=document.getElementById('cookfile');if(!i){i=document.createElement('input');i.id='cookfile';i.type='file';i.accept='image/*';i.setAttribute('capture','environment');i.style.display='none';document.body.appendChild(i)}i.onchange=async()=>{
+window.retakePhoto=()=>{COOK.photo=null;S.draftPhoto=null;save();renderCook()};
+window.openScan=id=>{const s=(S.scans||[]).find(x=>x.id===id);if(!s)return;COOK={photo:null,busy:false,err:null,result:{ai:true,ingredients:s.ingredients,recipes:s.recipes}};go('cookresult')};
+function fmtScanDate(ts){const d=new Date(ts);return d.toLocaleDateString('en-GB',{day:'numeric',month:'short'})+', '+d.toLocaleTimeString('en-GB',{hour:'numeric',minute:'2-digit'})}
+window.pickCookPhoto=(mode)=>{let i=document.getElementById('cookfile');if(!i){i=document.createElement('input');i.id='cookfile';i.type='file';i.style.display='none';document.body.appendChild(i)}
+  i.accept='image/*';
+  if(mode==='camera')i.setAttribute('capture','environment');else i.removeAttribute('capture');
+  i.onchange=async()=>{
   const f=i.files[0];if(!f)return;
-  try{COOK.photo=await downscale(f,1200);COOK.err=null;renderCook()}catch(e){COOK.err='Could not read that photo - try another one.';renderCook()}
-};i.click()};
+  try{COOK.photo=await downscale(f,1200);S.draftPhoto=COOK.photo;save();COOK.err=null;renderCook()}catch(e){COOK.err='Could not read that photo - try another one.';renderCook()}
+};i.value='';i.click()};
 function downscale(file,max){return new Promise((res,rej)=>{const img=new Image();img.onerror=rej;img.onload=()=>{
   const sc=Math.min(1,max/Math.max(img.width,img.height));
   const c=document.createElement('canvas');c.width=Math.round(img.width*sc);c.height=Math.round(img.height*sc);
   c.getContext('2d').drawImage(img,0,0,c.width,c.height);
   res(c.toDataURL('image/jpeg',0.82));URL.revokeObjectURL(img.src)};img.src=URL.createObjectURL(file)})}
+
+function makeThumb(dataUrl,max){return new Promise((res,rej)=>{const img=new Image();img.onerror=rej;img.onload=()=>{
+  const sc=Math.min(1,max/Math.max(img.width,img.height));
+  const c=document.createElement('canvas');c.width=Math.max(1,Math.round(img.width*sc));c.height=Math.max(1,Math.round(img.height*sc));
+  c.getContext('2d').drawImage(img,0,0,c.width,c.height);
+  res(c.toDataURL('image/jpeg',0.7))};img.src=dataUrl})}
 
 window.analyzeCook=async()=>{
   COOK.busy=true;COOK.err=null;renderCook();
@@ -168,6 +193,9 @@ Set egg:true when the dish contains eggs. Rules: exactly 2 or 3 recipes the pers
       .map(r=>({n:String(r.name),c:S.prefs.cuisines.includes(r.cuisine)?r.cuisine:S.prefs.cuisines[0],t:Math.max(5,parseInt(r.time_min)||25),diff:(r.difficulty==='Medium'?'Medium':'Easy'),veg:!!r.veg,vegan:!!r.vegan,egg:!!r.egg||(!r.veg&&/egg|anda/i.test(String(r.name)+' '+(r.uses||[]).join(' '))),uses:(r.uses||[]).slice(0,8),needs_extra:(r.needs_extra||[]).slice(0,6),steps:r.steps.slice(0,8)}));
     if(!a.recipes.length)throw new Error('bad');
     COOK.busy=false;COOK.result={ai:true,ingredients:a.ingredients_detected||[],recipes:a.recipes};
+    try{const thumb=await makeThumb(COOK.photo,320);
+      S.scans=[{id:Date.now(),ts:new Date().toISOString(),thumb,ingredients:COOK.result.ingredients,recipes:COOK.result.recipes},...(S.scans||[])].slice(0,10);
+      S.draftPhoto=null;save()}catch(e){}
     go('cookresult');
   }catch(e){
     COOK.busy=false;COOK.result=null;
