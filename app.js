@@ -33,6 +33,7 @@ function greet(){const h=new Date().getHours();return h<12?'Good morning':h<17?'
 function nav(){
   const items=[['today','Today','M3 11l9-8 9 8M5 10v10h5v-6h4v6h5V10'],
     ['cook','Cook','M6 13h12M6 13a6 6 0 0 1 12 0M9 10V7M12 10V6M15 10V7M4 17h16'],
+    ['week','Week','M8 2v4M16 2v4M3 10h18M5 4h14a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2z'],
     ['out','Eat out','M12 21s-7-6.2-7-11a7 7 0 0 1 14 0c0 4.8-7 11-7 11zM12 12.5a2.5 2.5 0 1 0 0-5 2.5 2.5 0 0 0 0 5z'],
     ['you','You','M12 12a4 4 0 1 0 0-8 4 4 0 0 0 0 8zM4 20c0-4 4-6 8-6s8 2 8 6']];
   const map={recipe:'cook',cookresult:'cook'};
@@ -69,6 +70,7 @@ async function render(){
   const v=$('#view');
   if(!S||!S.prefs||!S.prefs.done){renderOnboard();return}
   if(SCREEN==='today')renderToday();
+  else if(SCREEN==='week')renderWeek();
   else if(SCREEN==='cook')renderCook();
   else if(SCREEN==='cookresult')renderCookResult();
   else if(SCREEN==='recipe')renderRecipe(PARAM);
@@ -119,6 +121,12 @@ function renderToday(){
     <span class="hchev">&#8250;</span></button>`;
   h+=cookFirst?cookCard+outCard:outCard+cookCard;
   h+=`<div class="hintcard"><b>${MEALS[slot]} quick take</b><span id="quicktake">${esc(quickTake(slot))}</span></div>`;
+  ensurePlan();
+  if(S.prefs.groReminders){
+    const e=(S.week.slots||{})[dstr(1)]||{};
+    const names=['b','l','d'].map(sl=>e[sl]!=null?RECIPES[e[sl]].n:null).filter(Boolean);
+    if(names.length){const sv=WK.scope;WK.scope='tomorrow';const n=groceryList().filter(([g])=>!S.week.have[g]).length;WK.scope=sv;
+      h+=`<div class="hintcard nudge"><b>Tomorrow's groceries</b><span>${esc(names.join(', '))} - ${n} item${n===1?'':'s'} to order.</span><div class="gacts"><button class="cta ghost" onclick="go('week')">Open list</button><button class="cta ghost" onclick="shareGroceries('tomorrow')">Share</button></div></div>`}}
   h+=foodCarHTML();
   $('#view').innerHTML=h;
 }
@@ -271,6 +279,73 @@ function renderRecipe(p){
     ${(r.needs_extra&&r.needs_extra.length)?r.needs_extra.map(i=>`<li class="extra">${esc(i)} <span class="x">assumed pantry</span></li>`).join(''):''}</ul></div>`;
   h+=`<div class="card"><h3>Method</h3><ol class="steps">${steps.map(s=>`<li>${esc(s)}</li>`).join('')}</ol></div>`;
   h+=`<div class="notice soft">Text recipe only - no videos here, by design.</div>`;
+  $('#view').innerHTML=h;
+}
+
+/* ----- week planner + groceries ----- */
+let WK={scope:'tomorrow',focus:null,pinned:false};
+function dstr(off){const d=new Date();d.setDate(d.getDate()+off);return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0')}
+function dlabel(off){if(off===0)return 'Today';if(off===1)return 'Tomorrow';return new Date(Date.now()+off*86400000).toLocaleDateString('en-US',{weekday:'short',day:'numeric'})}
+function poolFor(slot){return RECIPES.map((r,i)=>i).filter(i=>dietOk(RECIPES[i])&&cuisineOk(RECIPES[i])&&RECIPES[i].meal.includes(slot))}
+function ensurePlan(){
+  if(!S.week)S.week={slots:{},have:{}};
+  if(!S.week.have)S.week.have={};
+  for(let o=0;o<7;o++){const ds=dstr(o);
+    if(!S.week.slots[ds]){const e={};
+      ['b','l','d'].forEach(sl=>{const p=poolFor(sl);if(p.length)e[sl]=p[Math.floor(Math.random()*p.length)]});
+      S.week.slots[ds]=e}}
+  const keep={};for(let o=0;o<7;o++)keep[dstr(o)]=1;
+  Object.keys(S.week.slots).forEach(k=>{if(!keep[k])delete S.week.slots[k]});
+  save();
+}
+function rerollSlot(ds,sl){const p=poolFor(sl).filter(i=>i!==S.week.slots[ds][sl]);if(!p.length)return;S.week.slots[ds][sl]=p[Math.floor(Math.random()*p.length)];save();render()}
+function scopeDates(){return WK.scope==='tomorrow'?[dstr(1)]:[...Array(7)].map((_,i)=>dstr(i))}
+function groceryList(){
+  const need=new Map();
+  scopeDates().forEach(ds=>{const e=S.week.slots[ds];if(!e)return;
+    ['b','l','d'].forEach(sl=>{const i=e[sl];if(i==null)return;RECIPES[i].ing.forEach(g=>{if(!need.has(g))need.set(g,[]);need.get(g).push(RECIPES[i].n)})})});
+  return [...need.entries()].sort((a,b)=>a[0].localeCompare(b[0]));
+}
+function focusIngs(){return WK.focus==null?null:new Set(RECIPES[WK.focus].ing)}
+function wkHover(i){WK.focus=i;paintHl()}
+function wkBlur(){if(!WK.pinned){WK.focus=null;paintHl()}}
+function wkTap(i){WK.pinned=!(WK.pinned&&WK.focus===i);WK.focus=WK.pinned?i:null;paintHl();
+  if(WK.pinned){const g=document.getElementById('grocard');if(g)g.scrollIntoView({behavior:'smooth'})}}
+function paintHl(){const fi=focusIngs();
+  document.querySelectorAll('.gro').forEach(el=>el.classList.toggle('hl',fi?fi.has(el.dataset.ing):false));
+  document.querySelectorAll('.wrow').forEach(el=>el.classList.toggle('hl',WK.focus!=null&&+el.dataset.i===WK.focus))}
+function wkHave(g){S.week.have[g]=S.week.have[g]?0:1;save();render()}
+function wkScope(s){WK.scope=s;WK.pinned=false;WK.focus=null;render()}
+function wkRem(){S.prefs.groReminders=!S.prefs.groReminders;save();render();toast(S.prefs.groReminders?"Tomorrow's list will greet you on the Today tab":'Grocery nudges off')}
+function shareText(scope){
+  const sv=WK.scope;WK.scope=scope;const list=groceryList().filter(([g])=>!S.week.have[g]);WK.scope=sv;
+  const days=scope==='tomorrow'?dlabel(1)+"'s meals":"this week's meals";
+  return `Groceries for ${days} (What Should I - Eat):\n`+list.map(([g,rs])=>`- ${g} (${rs.join(', ')})`).join('\n');
+}
+async function shareGroceries(scope){const t=shareText(scope);
+  try{if(navigator.share){await navigator.share({title:'Grocery list',text:t});return}}catch(e){}
+  try{await navigator.clipboard.writeText(t);toast('List copied - paste it anywhere')}catch(e){toast('Copy failed')}}
+function waGroceries(scope){open('https://wa.me/?text='+encodeURIComponent(shareText(scope)),'_blank')}
+function renderWeek(){
+  ensurePlan();
+  let h=`<div class="largetitle"><div class="gt">Plan, shop, done</div><h1>Your week</h1></div>`;
+  for(let o=0;o<7;o++){const ds=dstr(o);const e=S.week.slots[ds]||{};
+    h+=`<div class="daycard"><div class="dh"><b>${dlabel(o)}</b><span>${new Date(Date.now()+o*86400000).toLocaleDateString('en-US',{month:'short',day:'numeric'})}</span></div>`;
+    ['b','l','d'].forEach(sl=>{const i=e[sl];
+      if(i==null){h+=`<div class="wrow empty"><span class="m">${MEALS[sl]}</span><span class="rn">No match - widen cuisines in You</span></div>`;return}
+      const r=RECIPES[i];
+      h+=`<button class="wrow" data-i="${i}" onmouseenter="wkHover(${i})" onmouseleave="wkBlur()" onclick="wkTap(${i})"><span class="m">${MEALS[sl]}</span><span class="rn">${esc(r.n)}</span><span class="rt">${r.t}m</span><span class="rr" title="Swap" onclick="event.stopPropagation();rerollSlot('${ds}','${sl}')">&#10227;</span></button>`});
+    h+=`</div>`;
+  }
+  const list=groceryList();
+  const toOrder=list.filter(([g])=>!S.week.have[g]);
+  h+=`<div class="card" id="grocard"><h3>Groceries</h3>
+    <div class="seg"><button class="${WK.scope==='tomorrow'?'on':''}" onclick="wkScope('tomorrow')">Tomorrow</button><button class="${WK.scope==='week'?'on':''}" onclick="wkScope('week')">This week</button></div>
+    <div class="sub" style="margin:8px 0 2px">Tap what you already have - the rest is your order list. Tap a meal above to spotlight its ingredients.</div>
+    ${list.map(([g,rs])=>`<button class="gro ${S.week.have[g]?'have':''}" data-ing="${esc(g)}" onclick="wkHave('${esc(g)}')"><span class="box"></span><span class="gi">${esc(g)}</span><span class="gu">${esc(rs.join(', '))}</span></button>`).join('')||'<div class="sub">No recipes planned.</div>'}
+    <div class="gacts"><button class="cta" onclick="shareGroceries('${WK.scope}')">Share ${toOrder.length} to-order item${toOrder.length===1?'':'s'}</button><button class="cta ghost" onclick="waGroceries('${WK.scope}')">WhatsApp</button></div>
+    <div class="togglerow"><div><b>Grocery nudges</b><div class="sub">Tomorrow's list greets you on the Today tab.</div></div><button class="switch ${S.prefs.groReminders?'on':''}" onclick="wkRem()" aria-label="Toggle grocery nudges"></button></div>
+  </div>`;
   $('#view').innerHTML=h;
 }
 

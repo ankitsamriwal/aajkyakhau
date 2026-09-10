@@ -50,6 +50,36 @@ h1,h2,h3{margin:0;font-weight:700}
 .obemoji{font-size:52px}
 .obhero h1{font-size:30px;letter-spacing:-.02em;margin:8px 0 6px}
 .obsub{color:var(--sub);font-size:15px;max-width:300px;margin:0 auto}
+/* week planner + groceries */
+.daycard{background:var(--card);border-radius:var(--r);box-shadow:var(--shadow);padding:14px 16px;margin:14px 0}
+.daycard .dh{display:flex;justify-content:space-between;align-items:baseline;margin-bottom:6px}
+.daycard .dh b{font-size:.95rem}
+.daycard .dh span{font-size:.72rem;color:var(--sub)}
+.wrow{display:flex;align-items:center;gap:10px;padding:10px 12px;border-radius:14px;background:var(--bg);box-shadow:var(--press);margin:6px 0;width:100%;transition:box-shadow .15s}
+.wrow .m{font-size:.66rem;color:var(--sub);width:64px;flex:0 0 auto;text-transform:uppercase;letter-spacing:.05em}
+.wrow .rn{flex:1;font-weight:600;font-size:.88rem;text-align:left}
+.wrow .rt{font-size:.7rem;color:var(--sub)}
+.wrow .rr{font-size:.9rem;color:var(--sub);padding:4px 6px}
+.wrow.hl{box-shadow:var(--press),0 0 0 1.5px var(--accent)}
+.wrow.empty{opacity:.6}
+.seg{display:flex;background:var(--bg);box-shadow:var(--press);border-radius:999px;padding:4px;gap:4px;margin-top:8px}
+.seg button{flex:1;border-radius:999px;padding:7px 10px;font-size:.78rem;font-weight:600;color:var(--sub);text-align:center}
+.seg button.on{background:var(--card);box-shadow:var(--raise-sm);color:var(--ink)}
+.gro{display:flex;align-items:center;gap:10px;padding:9px 8px;border-bottom:1px solid var(--line);font-size:.9rem;width:100%;border-radius:10px}
+.gro .box{width:20px;height:20px;border-radius:7px;background:var(--bg);box-shadow:var(--press);flex:0 0 auto;display:flex;align-items:center;justify-content:center;font-size:.72rem;color:var(--accent)}
+.gro.have .box::after{content:'\2713'}
+.gro.have .gi{text-decoration:line-through;color:var(--sub)}
+.gro .gi{font-weight:600;text-transform:capitalize}
+.gro .gu{font-size:.66rem;color:var(--sub);margin-left:auto;text-align:right;max-width:46%}
+.gro.hl{background:rgba(74,111,165,.14)}
+.gacts{display:flex;gap:10px;margin-top:12px}
+.gacts .cta{margin:0;flex:1;padding:12px;font-size:.85rem}
+.nudge .gacts .cta{box-shadow:var(--raise-sm)}
+.togglerow{margin-top:14px;display:flex;justify-content:space-between;align-items:center;gap:12px;border-top:1px solid var(--line);padding-top:12px}
+.togglerow b{font-size:.88rem}
+.switch{width:46px;height:28px;border-radius:999px;background:var(--bg);box-shadow:var(--press);position:relative;flex:0 0 auto}
+.switch::after{content:'';position:absolute;top:4px;left:4px;width:20px;height:20px;border-radius:50%;background:var(--card);box-shadow:var(--raise-sm);transition:left .15s}
+.switch.on::after{left:22px;background:var(--accent)}
 /* today food carousel - fills the blank space on home */
 .foodcar{margin:18px -16px 0;overflow:hidden;padding:20px 16px}
 .ftrack{display:flex;gap:14px;width:max-content;animation:fslide 38s linear infinite}
