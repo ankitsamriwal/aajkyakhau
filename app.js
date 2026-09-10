@@ -118,7 +118,7 @@ function renderToday(){
     <div class="htxt"><b>Eating out</b><span>Roll for a dish that fits your taste - ${p.cuisines.map(CNAME).slice(0,3).join(', ')}${p.cuisines.length>3?' and more':''}.</span></div>
     <span class="hchev">&#8250;</span></button>`;
   h+=cookFirst?cookCard+outCard:outCard+cookCard;
-  h+=`<div class="hintcard"><b>Tonight's quick take</b><span id="quicktake">${esc(quickTake(slot))}</span></div>`;
+  h+=`<div class="hintcard"><b>'+MEALS[slot]+' quick take</b><span id="quicktake">${esc(quickTake(slot))}</span></div>`;
   $('#view').innerHTML=h;
 }
 function quickTake(slot){
@@ -142,7 +142,7 @@ function renderCook(){
   h+=`<button class="linkbtn" onclick="manualPick()">No photo? Pick your ingredients instead</button>`;
   $('#view').innerHTML=h;
 }
-window.pickCookPhoto=()=>{const i=document.createElement('input');i.type='file';i.accept='image/*';i.onchange=async()=>{
+window.pickCookPhoto=()=>{let i=document.getElementById('cookfile');if(!i){i=document.createElement('input');i.id='cookfile';i.type='file';i.accept='image/*';i.style.display='none';document.body.appendChild(i)}i.onchange=async()=>{
   const f=i.files[0];if(!f)return;
   try{COOK.photo=await downscale(f,1200);COOK.err=null;renderCook()}catch(e){COOK.err='Could not read that photo - try another one.';renderCook()}
 };i.click()};
