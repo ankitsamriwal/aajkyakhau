@@ -331,7 +331,7 @@ function renderYou(){
     ${[['veg','Vegetarian'],['nonveg','Non-vegetarian'],['vegan','Vegan'],['egg','Eggetarian']].map(([id,t])=>
     `<button class="pick sm ${p.diet===id?'on':''}" onclick="setPref('diet','${id}')"><b>${t}</b></button>`).join('')}</div>`;
   h+=`<div class="card"><h3>Cuisines you enjoy</h3>${chipRow(CUISINES,p.cuisines,'youToggleCuisine')}</div>`;
-  h+=`<div class="card about"><h3>About</h3><div class="sub">${APP_NAME} - the third of the Aaj Kya family. Your preferences stay on this device. Fridge photos go only to your own private AI proxy and are never stored.</div></div>`;
+  h+=`<div class="card about"><h3>About</h3><div class="sub">${APP_NAME} - part of What Should I. Your preferences stay on this device. Fridge photos go only to your own private AI proxy and are never stored.</div></div>`;
   $('#view').innerHTML=h;
 }
 window.setPref=(k,v)=>{S.prefs[k]=v;save();renderYou()};

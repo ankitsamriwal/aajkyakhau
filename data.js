@@ -98,4 +98,4 @@ const RECIPES=[
 const MEALS={b:'Breakfast',l:'Lunch',s:'Snack',d:'Dinner',n:'Late night'};
 const SLOT_HOURS=[[5,11,'b'],[11,16,'l'],[16,19,'s'],[19,23,'d']]; // else 'n'
 const WORKER='https://divine-guide.ankitsamriwal.workers.dev/chat';
-const APP_NAME='Aaj Kya Khau';
+const APP_NAME='Eat';
