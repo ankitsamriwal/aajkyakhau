@@ -16,7 +16,7 @@ body{
   font-size:16px;line-height:1.45;
   -webkit-font-smoothing:antialiased;
 }
-#view{max-width:560px;margin:0 auto;padding:20px 16px 108px}
+#view{max-width:560px;margin:0 auto;padding:20px 16px calc(120px + env(safe-area-inset-bottom))}
 button{font:inherit;color:inherit;background:none;border:0;cursor:pointer;text-align:left}
 h1,h2,h3{margin:0;font-weight:700}
 
@@ -160,14 +160,14 @@ ol.steps li{margin:10px 0;font-size:15px;line-height:1.5}
 .rollat{margin-top:14px;font-size:13px;color:#8e8e93}
 
 /* bottom nav */
-#nav{position:fixed;left:12px;right:12px;bottom:calc(12px + env(safe-area-inset-bottom));background:var(--bg);border:none;border-radius:24px;box-shadow:var(--shadow)}
+#nav{position:fixed;left:12px;right:12px;bottom:calc(14px + env(safe-area-inset-bottom));background:var(--bg);border:none;border-radius:24px;box-shadow:var(--shadow)}
 .navin{max-width:560px;margin:0 auto;display:flex}
-.navin button{flex:1;display:flex;flex-direction:column;align-items:center;gap:2px;padding:9px 0 7px;font-size:10.5px;font-weight:600;color:#7a8194}
+.navin button{flex:1;display:flex;flex-direction:column;align-items:center;gap:2px;padding:10px 0 9px;font-size:10.5px;font-weight:600;color:#7a8194}
 .navin button.on{color:var(--accent-ink)}
 .navin .ni{width:23px;height:23px}
 
 /* toast */
-.toast{position:fixed;left:50%;bottom:96px;transform:translateX(-50%);background:var(--ink);color:#fff;font-size:14px;padding:11px 18px;border-radius:999px;box-shadow:var(--shadow);z-index:50;animation:tin .2s}
+.toast{position:fixed;left:50%;bottom:calc(106px + env(safe-area-inset-bottom));transform:translateX(-50%);background:var(--ink);color:#fff;font-size:14px;padding:11px 18px;border-radius:999px;box-shadow:var(--shadow);z-index:50;animation:tin .2s}
 @keyframes tin{from{opacity:0;transform:translateX(-50%) translateY(6px)}}
 
 /* cook photo flow */
