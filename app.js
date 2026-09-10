@@ -310,14 +310,19 @@ const PUSH_KEY='1OI7dIZ5gi9od8fMsp6xBeMo16iYSfS2';
 const PUSH_BASE='https://divine-guide.ankitsamriwal.workers.dev';
 function b64ToU8(b){const p='='.repeat((4-b.length%4)%4);const s=atob((b+p).replace(/-/g,'+').replace(/_/g,'/'));return Uint8Array.from(s,c=>c.charCodeAt(0))}
 async function pushSubscribe(){
+  const mark=s=>{S.diag=s;save();lastSync='';pushSync()};
   try{
-    if(!('serviceWorker' in navigator)||!('PushManager' in window))return;
-    const perm=await Notification.requestPermission();if(perm!=='granted')return;
-    const reg=await navigator.serviceWorker.ready;
+    if(!('serviceWorker' in navigator))return mark('no-sw');
+    if(typeof Notification==='undefined')return mark('no-notification-api'+(EMBED?'-embed':''));
+    if(!('PushManager' in window))return mark('no-pushmanager');
+    const perm=await Notification.requestPermission();
+    if(perm!=='granted')return mark('perm-'+perm+(EMBED?'-embed':''));
+    const reg=await Promise.race([navigator.serviceWorker.ready,new Promise((_,rj)=>setTimeout(()=>rj(new Error('sw-timeout')),8000))]);
     let sub=await reg.pushManager.getSubscription();
     if(!sub)sub=await reg.pushManager.subscribe({userVisibleOnly:true,applicationServerKey:b64ToU8(VAPID_PUB)});
-    await fetch(PUSH_BASE+'/subscribe',{method:'POST',headers:{'Content-Type':'application/json','x-push-key':PUSH_KEY},body:JSON.stringify(sub)});
-  }catch(e){}
+    const r=await fetch(PUSH_BASE+'/subscribe',{method:'POST',headers:{'Content-Type':'application/json','x-push-key':PUSH_KEY},body:JSON.stringify(sub)});
+    mark(r.ok?'subscribed':'subscribe-post-'+r.status);
+  }catch(e){mark('err-'+String(e&&e.message||e).slice(0,120))}
 }
 let lastSync='';
 function pushSync(){
@@ -326,7 +331,7 @@ function pushSync(){
     const ds=dstr(1);const e=(S.week&&S.week.slots&&S.week.slots[ds])||{};
     const meals=['b','l','d'].map(sl=>e[sl]!=null?RECIPES[e[sl]].n:null).filter(Boolean);
     const sv=WK.scope;WK.scope='tomorrow';const items=groceryList().filter(([g])=>!(S.week.have&&S.week.have[g])).map(([g])=>g);WK.scope=sv;
-    const payload=JSON.stringify({date:ds,meals:meals,items:items});
+    const payload=JSON.stringify({date:ds,meals:meals,items:items,diag:S.diag||null});
     if(payload===lastSync)return;lastSync=payload;
     fetch(PUSH_BASE+'/sync',{method:'POST',headers:{'Content-Type':'application/json','x-push-key':PUSH_KEY},body:payload}).catch(()=>{});
   }catch(e){}
