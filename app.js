@@ -189,7 +189,7 @@ function renderManual(){
   const m=matchRecipes(MANUAL.picked);
   if(MANUAL.picked.length){
     h+=`<div class="secttl"><h2>${m.length?'You can make':'Nothing yet - add a couple more staples'}</h2></div>`;
-    h+=m.map(r=>recipeRow(r,'local')).join('');
+    h+=m.map((r,i)=>recipeRow(r,'local',i)).join('');
   }
   $('#view').innerHTML=h;window.scrollTo(0,0);
 }
@@ -215,8 +215,7 @@ function renderCookResult(){
   $('#view').innerHTML=h;
 }
 function recipeRow(r,src,i){
-  const idx=src==='ai'?i:RECIPES.indexOf(RECIPES.find(x=>x.n===r.n));
-  return `<button class="card recipick" onclick="openRecipe('${src}',${idx})">
+  return `<button class="card recipick" onclick="openRecipe('${src}',${i})">
     <div class="rtop"><b>${esc(r.n)}</b>${vegBadge(r)}</div>
     <div class="rmeta"><span>&#9200; ${r.t||r.time_min} min</span><span>${esc(r.diff)}</span><span>${esc(CNAME(r.c)||'')}</span>${r.match?`<span class="matchbadge">${r.match}% match</span>`:''}</div>
     <div class="ruses">Uses: ${esc((r.uses||r.ing||[]).slice(0,5).join(', '))}</div>
