@@ -102,7 +102,7 @@ function renderOnboard(){
   $('#view').innerHTML=h;
 }
 window.obToggleCuisine=id=>{const a=OB.p.cuisines;const i=a.indexOf(id);if(i>=0){if(a.length>1)a.splice(i,1)}else a.push(id);renderOnboard()};
-window.finishOnboard=()=>{S={prefs:OB.p,cook:{},roll:{seen:[]}};save();try{history.replaceState({sc:'today'},'')}catch(e){}SCREEN='today';render()};
+window.finishOnboard=()=>{OB.p.done=true;S={prefs:OB.p,cook:{},roll:{seen:[]}};save();try{history.replaceState({sc:'today'},'')}catch(e){}SCREEN='today';render()};
 
 /* ----- today ----- */
 function renderToday(){
