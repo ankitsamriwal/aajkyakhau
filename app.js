@@ -289,16 +289,27 @@ function renderRecipe(p){
   if(p.src==='ai')r=COOK&&COOK.result&&COOK.result.recipes[p.i];
   else{const m=matchRecipes(MANUAL?MANUAL.picked:[]);r=m[p.i]||null}
   if(!r){back();return}
-  const steps=r.steps||[];const ing=r.uses||r.ing||[];
+  const steps=r.steps||[];const ing=recipeIngs(r);
   let h=`<div class="backbar"><button onclick="back()">&#8592; Back</button><h2>${esc(r.n)}</h2></div>`;
   h+=`<div class="card hero-r"><div class="rtop"><b class="rname">${esc(r.n)}</b>${vegBadge(r)}</div>
     <div class="rmeta"><span>&#9200; ${r.t||r.time_min} min prep + cook</span><span>${esc(r.diff)}</span><span>${esc(CNAME(r.c)||'')}</span></div></div>`;
-  h+=`<div class="card"><h3>Ingredients</h3><ul class="ing">${ing.map(i=>`<li>${esc(i)}</li>`).join('')}
+  h+=`<div class="card"><h3>Ingredients</h3><ul class="ing custom-ing">${ing.map(g=>`<li><span>${esc(g)}</span><button onclick="customRemove('${p.src}',${p.i},'${esc(g)}')" aria-label="Remove ${esc(g)}">Remove</button></li>`).join('')}
     ${(r.needs_extra&&r.needs_extra.length)?r.needs_extra.map(i=>`<li class="extra">${esc(i)} <span class="x">assumed pantry</span></li>`).join(''):''}</ul></div>`;
+  h+=customizeButton(p.src,p.i,r);
   h+=`<div class="card"><h3>Method</h3><ol class="steps">${steps.map(s=>`<li>${esc(s)}</li>`).join('')}</ol></div>`;
   h+=`<div class="notice soft">Text recipe only - no videos here, by design.</div>`;
   $('#view').innerHTML=h;
 }
+
+/* ----- household recipe customization ----- */
+function recipeId(r){return String(r.n||'recipe').toLowerCase().replace(/[^a-z0-9]+/g,'-').replace(/^-|-$/g,'')}
+function recipeIngs(r){const base=(r.uses||r.ing||[]).map(x=>String(x).trim()).filter(Boolean);const c=(S.recipeCustom||{})[recipeId(r)]||{};const removed=new Set(c.removed||[]);return [...new Set(base.filter(x=>!removed.has(x)).concat(c.added||[]))]}
+function ensureRecipeCustom(){if(!S.recipeCustom)S.recipeCustom={};return S.recipeCustom}
+function customRecipe(src,i){return src==='ai'?(COOK&&COOK.result&&COOK.result.recipes[i]):(matchRecipes(MANUAL?MANUAL.picked:[])[i]||RECIPES[i])}
+function customAdd(src,i){const r=customRecipe(src,i);if(!r)return;const el=document.getElementById('custom-new');const g=(el&&el.value||'').trim().toLowerCase();if(!g)return;const all=ensureRecipeCustom(),id=recipeId(r),c=all[id]||(all[id]={added:[],removed:[]});c.removed=(c.removed||[]).filter(x=>x!==g);if(!recipeIngs(r).includes(g))c.added=[...(c.added||[]),g];save();renderRecipe({src,i})}
+function customRemove(src,i,g){const r=customRecipe(src,i);if(!r)return;const all=ensureRecipeCustom(),id=recipeId(r),c=all[id]||(all[id]={added:[],removed:[]});if((c.added||[]).includes(g))c.added=c.added.filter(x=>x!==g);else if(!(c.removed||[]).includes(g))c.removed=[...(c.removed||[]),g];save();renderRecipe({src,i})}
+function customReset(src,i){const r=customRecipe(src,i);if(!r)return;delete ensureRecipeCustom()[recipeId(r)];save();renderRecipe({src,i})}
+function customizeButton(src,i,r){const changed=!!(S.recipeCustom&&S.recipeCustom[recipeId(r)]);return `<div class="custom-card"><div><b>Household ingredients</b><span>Add your staples or remove anything you do not use. Grocery lists and Kitchen Mode follow this version.</span></div><div class="custom-add"><input id="custom-new" placeholder="Add an ingredient" onkeydown="if(event.key==='Enter')customAdd('${src}',${i})"><button onclick="customAdd('${src}',${i})">Add</button></div>${changed?`<button class="custom-reset" onclick="customReset('${src}',${i})">Reset to original recipe</button>`:''}</div>`}
 
 /* ----- week planner + groceries ----- */
 let WK={scope:'tomorrow',focus:null,pinned:false};
@@ -354,10 +365,10 @@ function scopeDates(){return WK.scope==='tomorrow'?[dstr(1)]:[...Array(7)].map((
 function groceryList(){
   const need=new Map();
   scopeDates().forEach(ds=>{const e=S.week.slots[ds];if(!e)return;
-    ['b','l','d'].forEach(sl=>{const i=e[sl];if(i==null)return;RECIPES[i].ing.forEach(g=>{if(!need.has(g))need.set(g,[]);need.get(g).push(RECIPES[i].n)})})});
+    ['b','l','d'].forEach(sl=>{const i=e[sl];if(i==null)return;recipeIngs(RECIPES[i]).forEach(g=>{if(!need.has(g))need.set(g,[]);need.get(g).push(RECIPES[i].n)})})});
   return [...need.entries()].sort((a,b)=>a[0].localeCompare(b[0]));
 }
-function focusIngs(){return WK.focus==null?null:new Set(RECIPES[WK.focus].ing)}
+function focusIngs(){return WK.focus==null?null:new Set(recipeIngs(RECIPES[WK.focus]))}
 function wkHover(i){WK.focus=i;paintHl()}
 function wkBlur(){if(!WK.pinned){WK.focus=null;paintHl()}}
 let SHEET=null;
@@ -373,7 +384,7 @@ function renderSheet(){
   const e=(S.week&&S.week.slots&&S.week.slots[SHEET.ds])||{};const i=e[SHEET.sl];
   if(i==null){SHEET=null;WK.focus=null;w.className='';w.innerHTML='';document.body.style.overflow='';return}
   const r=RECIPES[i];const have=S.week.have||{};
-  const rows=r.ing.map(g=>`<button class="gro ${have[g]?'have':''}" onclick="sheetHave('${esc(g)}')"><span class="box"></span><span class="gi">${esc(g)}</span>${have[g]?'<span class="gu">have it</span>':''}</button>`).join('');
+  const rows=recipeIngs(r).map(g=>`<button class="gro ${have[g]?'have':''}" onclick="sheetHave('${esc(g)}')"><span class="box"></span><span class="gi">${esc(g)}</span>${have[g]?'<span class="gu">have it</span>':''}</button>`).join('');
   w.className='open';document.body.style.overflow='hidden';
   w.innerHTML=`<div class="scrim" onclick="sheetClose()"></div>
   <div class="sheet" id="sheet">
@@ -386,6 +397,7 @@ function renderSheet(){
     <div class="sub" style="margin:0 0 10px">Tap what you already have - it drops off the order list.</div>
     <div class="gacts"><button class="cta ghost" onclick="sheetSwap()">&#10227; Swap meal</button><button class="cta ghost" onclick="sheetRemove()">Remove</button></div>
     <div class="gacts"><button class="cta" onclick="sheetCopy()">Copy ingredients</button><button class="cta ghost" onclick="sheetWa()">WhatsApp</button></div>
+    <button class="cta ghost" onclick="sheetCustomize()">Customize recipe ingredients</button>
     <div class="togglerow"><div><b>Grocery nudges</b><div class="sub">8am reminder with tomorrow's list.</div></div><button class="switch ${S.prefs.groReminders?'on':''}" onclick="sheetRem()" aria-label="Toggle grocery nudges"></button></div>
   </div>`;
   const sh=document.getElementById('sheet');let sy=null,dy=0;
@@ -393,11 +405,12 @@ function renderSheet(){
   sh.addEventListener('touchmove',e=>{if(sy==null)return;dy=e.touches[0].clientY-sy;if(dy>0)sh.style.transform='translate(-50%,'+dy+'px)'},{passive:true});
   sh.addEventListener('touchend',()=>{if(dy>90){sheetClose()}else{sh.style.transform=''}sy=null;dy=0});
 }
+function sheetCustomize(){const e=S.week.slots[SHEET.ds]||{};const i=e[SHEET.sl];sheetClose();go('recipe',{src:'local',i})}
 function sheetHave(g){S.week.have[g]=S.week.have[g]?0:1;save();render();paintHl();renderSheet()}
 function sheetSwap(){rerollSlot(SHEET.ds,SHEET.sl);lastSync='';pushSync();renderSheet()}
 function sheetRemove(){S.week.slots[SHEET.ds][SHEET.sl]=null;save();lastSync='';pushSync();sheetClose();render()}
 function sheetText(){const e=S.week.slots[SHEET.ds]||{};const r=RECIPES[e[SHEET.sl]];
-  const items=r.ing.filter(g=>!(S.week.have&&S.week.have[g]));
+  const items=recipeIngs(r).filter(g=>!(S.week.have&&S.week.have[g]));
   return `${r.n} (${dlabel(sheetDayOff())}, ${MEALS[SHEET.sl]}):\n`+(items.length?items.map(g=>'- '+g).join('\n'):'- nothing left to order')}
 async function sheetCopy(){const t=sheetText();try{await navigator.clipboard.writeText(t);toast('Ingredients copied')}catch(e){toast('Copy failed')}sheetClose()}
 function sheetWa(){open('https://wa.me/?text='+encodeURIComponent(sheetText()),'_blank');sheetClose()}
@@ -438,6 +451,7 @@ function renderWeek(){
     <div class="sub" style="margin:8px 0 2px">Tap what you already have - the rest is your order list. Tap a meal above for its ingredients and actions.</div>
     ${list.map(([g,rs])=>`<button class="gro ${S.week.have[g]?'have':''}" data-ing="${esc(g)}" onclick="wkHave('${esc(g)}')"><span class="box"></span><span class="gi">${esc(g)}</span><span class="gu">${esc(rs.join(', '))}</span></button>`).join('')||'<div class="sub">No recipes planned.</div>'}
     <div class="gacts"><button class="cta" onclick="shareGroceries('${WK.scope}')">Share ${toOrder.length} to-order item${toOrder.length===1?'':'s'}</button><button class="cta ghost" onclick="waGroceries('${WK.scope}')">WhatsApp</button></div>
+    <button class="cta ghost" onclick="sheetCustomize()">Customize recipe ingredients</button>
     <div class="togglerow"><div><b>Grocery nudges</b><div class="sub">Tomorrow's list greets you on the Today tab.</div></div><button class="switch ${S.prefs.groReminders?'on':''}" onclick="wkRem()" aria-label="Toggle grocery nudges"></button></div>
   </div>`;
   $('#view').innerHTML=h;
@@ -449,13 +463,13 @@ function kitchenChecks(){if(!S.kitchen)S.kitchen={checks:{},added:{}};if(!S.kitc
 function kitchenKey(ds,sl){return ds+'|'+sl}
 function kitchenOpen(day,sl){KITCH.day=day;KITCH.selected=sl;renderKitchen()}
 function kitchenToggle(ds,sl,g,state){const c=kitchenChecks(),k=kitchenKey(ds,sl);if(!c[k])c[k]={};c[k][g]=c[k][g]===state?'':state;save();renderKitchen()}
-function kitchenAddMissing(ds,sl){const e=S.week.slots[ds]||{},r=RECIPES[e[sl]];if(!r)return;const c=kitchenChecks()[kitchenKey(ds,sl)]||{};let n=0;r.ing.forEach(g=>{if(c[g]==='missing'&&!S.kitchen.added[g]){S.kitchen.added[g]=1;n++}});save();toast(n?`${n} item${n===1?'':'s'} added to groceries`:'Already on the grocery list');renderKitchen()}
+function kitchenAddMissing(ds,sl){const e=S.week.slots[ds]||{},r=RECIPES[e[sl]];if(!r)return;const c=kitchenChecks()[kitchenKey(ds,sl)]||{};let n=0;recipeIngs(r).forEach(g=>{if(c[g]==='missing'&&!S.kitchen.added[g]){S.kitchen.added[g]=1;n++}});save();toast(n?`${n} item${n===1?'':'s'} added to groceries`:'Already on the grocery list');renderKitchen()}
 function kitchenExit(){localStorage.removeItem('akk_kitchen_mode');SCREEN='you';KITCH.selected=null;render()}
 function kitchenEnter(){localStorage.setItem('akk_kitchen_mode','1');SCREEN='kitchen';HIST=[];ensurePlan();render();pullKitchenState(true)}
 function kitchenConnect(){const e=document.getElementById('kconnect-email');if(!e||!e.value.includes('@')){toast('Enter the same email used on your phone');return}S.prefs.syncEmail=e.value.trim();save();pullKitchenState(true);renderKitchen()}
 function kitchenDayStrip(){return `<div class="kdays">${[0,1,2,3,4,5,6].map(o=>`<button class="${KITCH.day===o?'on':''}" onclick="KITCH.day=${o};KITCH.selected=null;renderKitchen()"><b>${o===0?'Today':new Date(Date.now()+o*86400000).toLocaleDateString('en-US',{weekday:'short'})}</b><span>${new Date(Date.now()+o*86400000).getDate()}</span></button>`).join('')}</div>`}
 function kitchenMealCards(){const ds=dstr(KITCH.day),e=S.week.slots[ds]||{},now=slotNow(),order=['b','l','d'];return `<div class="kmeal-list">${order.map(sl=>{const i=e[sl],r=i==null?null:RECIPES[i];return `<button class="kmeal ${KITCH.selected===sl?'on':''}" onclick="${r?`kitchenOpen(${KITCH.day},'${sl}')`:''}"><span class="km-label">${KITCH.day===0&&sl===now?'NEXT · ':''}${MEALS[sl]}</span>${r?`<b>${esc(r.n)}</b><span>${r.t} min · ${esc(CNAME(r.c))}</span>`:'<b>No meal planned</b>'}</button>`}).join('')}</div>`}
-function kitchenDetail(){const ds=dstr(KITCH.day),e=S.week.slots[ds]||{};let sl=KITCH.selected;if(!sl||e[sl]==null)sl=['b','l','d'].find(x=>e[x]!=null);if(!sl)return `<div class="kempty">No meal planned for this day.</div>`;KITCH.selected=sl;const r=RECIPES[e[sl]],c=kitchenChecks()[kitchenKey(ds,sl)]||{};const have=r.ing.filter(g=>c[g]==='have').length,missing=r.ing.filter(g=>c[g]==='missing').length,done=have+missing===r.ing.length;return `<div class="kdetail-head"><div><span>${MEALS[sl]} · ${r.t} min</span><h2>${esc(r.n)}</h2></div>${vegBadge(r)}</div><div class="kserv">Ingredients · 4 servings</div><div class="king-list">${r.ing.map(g=>`<div class="king"><b>${esc(g)}</b>${S.kitchen.added[g]?'<span class="onlist">On list</span>':''}<div><button class="${c[g]==='have'?'on':''}" onclick="kitchenToggle('${ds}','${sl}','${esc(g)}','have')">Have</button><button class="miss ${c[g]==='missing'?'on':''}" onclick="kitchenToggle('${ds}','${sl}','${esc(g)}','missing')">Missing</button></div></div>`).join('')}</div><div class="ksticky"><div><b>${have} have · ${missing} missing</b><span>${done?'Ready to cook':'Check the fridge'}</span></div><button ${missing?'':'disabled'} onclick="kitchenAddMissing('${ds}','${sl}')">Add ${missing||''} missing to groceries</button></div>`}
+function kitchenDetail(){const ds=dstr(KITCH.day),e=S.week.slots[ds]||{};let sl=KITCH.selected;if(!sl||e[sl]==null)sl=['b','l','d'].find(x=>e[x]!=null);if(!sl)return `<div class="kempty">No meal planned for this day.</div>`;KITCH.selected=sl;const r=RECIPES[e[sl]],c=kitchenChecks()[kitchenKey(ds,sl)]||{};const ings=recipeIngs(r),have=ings.filter(g=>c[g]==='have').length,missing=ings.filter(g=>c[g]==='missing').length,done=have+missing===ings.length;return `<div class="kdetail-head"><div><span>${MEALS[sl]} · ${r.t} min</span><h2>${esc(r.n)}</h2></div>${vegBadge(r)}</div><div class="kserv">Ingredients · 4 servings <button class="kcustom" onclick="localStorage.removeItem('akk_kitchen_mode');document.body.classList.remove('kitchen-mode');go('recipe',{src:'local',i:${e[sl]}})">Customize recipe</button></div><div class="king-list">${ings.map(g=>`<div class="king"><b>${esc(g)}</b>${S.kitchen.added[g]?'<span class="onlist">On list</span>':''}<div><button class="${c[g]==='have'?'on':''}" onclick="kitchenToggle('${ds}','${sl}','${esc(g)}','have')">Have</button><button class="miss ${c[g]==='missing'?'on':''}" onclick="kitchenToggle('${ds}','${sl}','${esc(g)}','missing')">Missing</button></div></div>`).join('')}</div><div class="ksticky"><div><b>${have} have · ${missing} missing</b><span>${done?'Ready to cook':'Check the fridge'}</span></div><button ${missing?'':'disabled'} onclick="kitchenAddMissing('${ds}','${sl}')">Add ${missing||''} missing to groceries</button></div>`}
 function renderKitchen(){ensurePlan();document.body.classList.add('kitchen-mode');const ds=dstr(KITCH.day);const connect=!kitchenEmail()?`<div class="kconnect"><b>Connect this kitchen screen</b><span>Enter the same email used in Khau on your phone.</span><div><input id="kconnect-email" type="email" placeholder="you@example.com"><button onclick="kitchenConnect()">Connect</button></div></div>`:'';const h=connect+`<div class="khead"><div><span>Kitchen</span><h1>${new Date(ds+'T12:00:00').toLocaleDateString('en-US',{weekday:'long',day:'numeric',month:'long'})}</h1></div><div class="khead-actions"><button id="ksync" onclick="pullKitchenState(true)">${kitchenSyncState==='offline'?'Offline - saved here':kitchenSyncState==='syncing'?'Updating…':'Updated just now'}</button><button onclick="kitchenExit()">Exit</button></div></div>${kitchenDayStrip()}<div class="kview-toggle"><button class="${KITCH.view==='today'?'on':''}" onclick="KITCH.view='today';renderKitchen()">Today</button><button class="${KITCH.view==='week'?'on':''}" onclick="KITCH.view='week';renderKitchen()">Week</button></div>${KITCH.view==='week'?`<div class="kweek">${[0,1,2,3,4,5,6].map(o=>{const x=S.week.slots[dstr(o)]||{};return `<section><b>${dlabel(o)}</b>${['b','l','d'].map(sl=>x[sl]!=null?`<button onclick="KITCH.day=${o};KITCH.view='today';kitchenOpen(${o},'${sl}')"><span>${MEALS[sl]}</span>${esc(RECIPES[x[sl]].n)}</button>`:'').join('')}</section>`}).join('')}</div>`:`<div class="ksplit"><aside><h3>Meal plan</h3>${kitchenMealCards()}</aside><section class="kdetail">${kitchenDetail()}</section></div>`}`;$('#view').innerHTML=h;$('#view').className='kitchen-view';pullKitchenState(false)}
 
 /* ----- eat out ----- */
