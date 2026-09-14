@@ -4,7 +4,18 @@ const esc=s=>String(s==null?'':s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;'
 const LS='akk_v1';
 let S=load();
 function load(){try{return JSON.parse(localStorage.getItem(LS))||null}catch(e){return null}}
-function save(){localStorage.setItem(LS,JSON.stringify(S))}
+function save(){
+  if(S){S._khauUpdated=new Date().toISOString();localStorage.setItem(LS,JSON.stringify(S));scheduleKitchenSync()}
+}
+const KITCHEN_WORKER='https://cafdetox-api.ankitsamriwal.workers.dev';
+let kitchenSyncTimer=null,kitchenSyncState='local',kitchenLastPull=0;
+function kitchenEmail(){const e=((S&&S.prefs&&S.prefs.syncEmail)||'').trim().toLowerCase();if(!e||!e.includes('@'))return '';const a=e.split('@');return a[0]+'+khau-kitchen@'+a.slice(1).join('@')}
+function scheduleKitchenSync(){if(!kitchenEmail())return;clearTimeout(kitchenSyncTimer);kitchenSyncTimer=setTimeout(pushKitchenState,1200)}
+async function pushKitchenState(){const email=kitchenEmail();if(!email)return;kitchenSyncState='syncing';paintKitchenSync();try{const r=await fetch(KITCHEN_WORKER+'/state',{method:'PUT',headers:{'Content-Type':'application/json'},body:JSON.stringify({email,state:S})});if(!r.ok)throw Error('sync');kitchenSyncState='synced'}catch(e){kitchenSyncState='offline'}paintKitchenSync()}
+async function pullKitchenState(force){const email=kitchenEmail();if(!email)return;if(!force&&Date.now()-kitchenLastPull<15000)return;kitchenLastPull=Date.now();kitchenSyncState='syncing';paintKitchenSync();try{const r=await fetch(KITCHEN_WORKER+'/state?email='+encodeURIComponent(email));if(!r.ok)throw Error('sync');const d=await r.json();if(d.found&&d.updated_at&&(!S._khauUpdated||d.updated_at>S._khauUpdated)){S=d.state;localStorage.setItem(LS,JSON.stringify(S));if(SCREEN==='kitchen')renderKitchen()}kitchenSyncState='synced'}catch(e){kitchenSyncState='offline'}paintKitchenSync()}
+function paintKitchenSync(){const e=document.getElementById('ksync');if(e)e.textContent=kitchenSyncState==='syncing'?'Updating…':kitchenSyncState==='offline'?'Offline - saved here':'Updated just now'}
+setInterval(()=>{if(SCREEN==='kitchen')pullKitchenState(false)},60000);
+window.addEventListener('focus',()=>pullKitchenState(true));
 
 /* ---------- prefs ---------- */
 function defaultPrefs(){return {style:null, // 'home' | 'out' | 'mix'
@@ -35,6 +46,7 @@ try{history.replaceState({sc:'today'},'')}catch(e){}}
 function slotNow(){const h=new Date().getHours();for(const [a,b,id] of SLOT_HOURS){if(h>=a&&h<b)return id}return 'n'}
 function greet(){const h=new Date().getHours();return h<12?'Good morning':h<17?'Good afternoon':'Good evening'}
 function nav(){
+  if(SCREEN==='kitchen'){ $('#nav').innerHTML='';return }
   const items=[['today','Today','M3 11l9-8 9 8M5 10v10h5v-6h4v6h5V10'],
     ['cook','Cook','M6 13h12M6 13a6 6 0 0 1 12 0M9 10V7M12 10V6M15 10V7M4 17h16'],
     ['week','Week','M8 2v4M16 2v4M3 10h18M5 4h14a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2z'],
@@ -83,6 +95,7 @@ async function render(){
   else if(SCREEN==='manual')renderManual();
   else if(SCREEN==='out')renderOut();
   else if(SCREEN==='you')renderYou();
+  else if(SCREEN==='kitchen')renderKitchen();
   window.scrollTo(0,0);
 }
 
@@ -430,6 +443,20 @@ function renderWeek(){
   $('#view').innerHTML=h;
 }
 
+/* ----- kitchen mode ----- */
+let KITCH={day:0,view:'today',selected:null};
+function kitchenChecks(){if(!S.kitchen)S.kitchen={checks:{},added:{}};if(!S.kitchen.checks)S.kitchen.checks={};if(!S.kitchen.added)S.kitchen.added={};return S.kitchen.checks}
+function kitchenKey(ds,sl){return ds+'|'+sl}
+function kitchenOpen(day,sl){KITCH.day=day;KITCH.selected=sl;renderKitchen()}
+function kitchenToggle(ds,sl,g,state){const c=kitchenChecks(),k=kitchenKey(ds,sl);if(!c[k])c[k]={};c[k][g]=c[k][g]===state?'':state;save();renderKitchen()}
+function kitchenAddMissing(ds,sl){const e=S.week.slots[ds]||{},r=RECIPES[e[sl]];if(!r)return;const c=kitchenChecks()[kitchenKey(ds,sl)]||{};let n=0;r.ing.forEach(g=>{if(c[g]==='missing'&&!S.kitchen.added[g]){S.kitchen.added[g]=1;n++}});save();toast(n?`${n} item${n===1?'':'s'} added to groceries`:'Already on the grocery list');renderKitchen()}
+function kitchenExit(){localStorage.removeItem('akk_kitchen_mode');SCREEN='you';KITCH.selected=null;render()}
+function kitchenEnter(){localStorage.setItem('akk_kitchen_mode','1');SCREEN='kitchen';HIST=[];ensurePlan();render();pullKitchenState(true)}
+function kitchenDayStrip(){return `<div class="kdays">${[0,1,2,3,4,5,6].map(o=>`<button class="${KITCH.day===o?'on':''}" onclick="KITCH.day=${o};KITCH.selected=null;renderKitchen()"><b>${o===0?'Today':new Date(Date.now()+o*86400000).toLocaleDateString('en-US',{weekday:'short'})}</b><span>${new Date(Date.now()+o*86400000).getDate()}</span></button>`).join('')}</div>`}
+function kitchenMealCards(){const ds=dstr(KITCH.day),e=S.week.slots[ds]||{},now=slotNow(),order=['b','l','d'];return `<div class="kmeal-list">${order.map(sl=>{const i=e[sl],r=i==null?null:RECIPES[i];return `<button class="kmeal ${KITCH.selected===sl?'on':''}" onclick="${r?`kitchenOpen(${KITCH.day},'${sl}')`:''}"><span class="km-label">${KITCH.day===0&&sl===now?'NEXT · ':''}${MEALS[sl]}</span>${r?`<b>${esc(r.n)}</b><span>${r.t} min · ${esc(CNAME(r.c))}</span>`:'<b>No meal planned</b>'}</button>`}).join('')}</div>`}
+function kitchenDetail(){const ds=dstr(KITCH.day),e=S.week.slots[ds]||{};let sl=KITCH.selected;if(!sl||e[sl]==null)sl=['b','l','d'].find(x=>e[x]!=null);if(!sl)return `<div class="kempty">No meal planned for this day.</div>`;KITCH.selected=sl;const r=RECIPES[e[sl]],c=kitchenChecks()[kitchenKey(ds,sl)]||{};const have=r.ing.filter(g=>c[g]==='have').length,missing=r.ing.filter(g=>c[g]==='missing').length,done=have+missing===r.ing.length;return `<div class="kdetail-head"><div><span>${MEALS[sl]} · ${r.t} min</span><h2>${esc(r.n)}</h2></div>${vegBadge(r)}</div><div class="kserv">Ingredients · 4 servings</div><div class="king-list">${r.ing.map(g=>`<div class="king"><b>${esc(g)}</b>${S.kitchen.added[g]?'<span class="onlist">On list</span>':''}<div><button class="${c[g]==='have'?'on':''}" onclick="kitchenToggle('${ds}','${sl}','${esc(g)}','have')">Have</button><button class="miss ${c[g]==='missing'?'on':''}" onclick="kitchenToggle('${ds}','${sl}','${esc(g)}','missing')">Missing</button></div></div>`).join('')}</div><div class="ksticky"><div><b>${have} have · ${missing} missing</b><span>${done?'Ready to cook':'Check the fridge'}</span></div><button ${missing?'':'disabled'} onclick="kitchenAddMissing('${ds}','${sl}')">Add ${missing||''} missing to groceries</button></div>`}
+function renderKitchen(){ensurePlan();document.body.classList.add('kitchen-mode');const ds=dstr(KITCH.day);const h=`<div class="khead"><div><span>Kitchen</span><h1>${new Date(ds+'T12:00:00').toLocaleDateString('en-US',{weekday:'long',day:'numeric',month:'long'})}</h1></div><div class="khead-actions"><button id="ksync" onclick="pullKitchenState(true)">${kitchenSyncState==='offline'?'Offline - saved here':kitchenSyncState==='syncing'?'Updating…':'Updated just now'}</button><button onclick="kitchenExit()">Exit</button></div></div>${kitchenDayStrip()}<div class="kview-toggle"><button class="${KITCH.view==='today'?'on':''}" onclick="KITCH.view='today';renderKitchen()">Today</button><button class="${KITCH.view==='week'?'on':''}" onclick="KITCH.view='week';renderKitchen()">Week</button></div>${KITCH.view==='week'?`<div class="kweek">${[0,1,2,3,4,5,6].map(o=>{const x=S.week.slots[dstr(o)]||{};return `<section><b>${dlabel(o)}</b>${['b','l','d'].map(sl=>x[sl]!=null?`<button onclick="KITCH.day=${o};KITCH.view='today';kitchenOpen(${o},'${sl}')"><span>${MEALS[sl]}</span>${esc(RECIPES[x[sl]].n)}</button>`:'').join('')}</section>`}).join('')}</div>`:`<div class="ksplit"><aside><h3>Meal plan</h3>${kitchenMealCards()}</aside><section class="kdetail">${kitchenDetail()}</section></div>`}`;$('#view').innerHTML=h;$('#view').className='kitchen-view';pullKitchenState(false)}
+
 /* ----- eat out ----- */
 let ROLL=null;
 function renderOut(){
@@ -493,12 +520,16 @@ function renderYou(){
     ${[['veg','Vegetarian'],['nonveg','Non-vegetarian'],['vegan','Vegan'],['egg','Eggetarian']].map(([id,t])=>
     `<button class="pick sm ${p.diet===id?'on':''}" onclick="setPref('diet','${id}')"><b>${t}</b></button>`).join('')}</div>`;
   h+=`<div class="card"><h3>Cuisines you enjoy</h3>${chipRow(CUISINES,p.cuisines,'youToggleCuisine')}</div>`;
-  h+=`<div class="card about"><h3>About</h3><div class="sub">${APP_NAME} - part of What Should I. Your preferences stay on this device. Fridge photos go only to your own private AI proxy and are never stored.</div></div>`;
+  h+=`<div class="card"><h3>Kitchen display</h3><div class="sub">Put the meal plan and fridge checklist on a kitchen tablet. Changes stay in sync across devices.</div><div class="field k-email"><label for="khau-email">Sync email</label><input id="khau-email" type="email" placeholder="you@example.com" value="${esc(p.syncEmail||'')}" onchange="setKitchenEmail(this.value)"></div><button class="cta" onclick="kitchenEnter()">Open Kitchen Mode</button></div>`;
+  h+=`<div class="card about"><h3>About</h3><div class="sub">${APP_NAME} - part of What Should I. Fridge photos go only to your own private AI proxy and are never stored.</div></div>`;
   $('#view').innerHTML=h;
 }
 window.setPref=(k,v)=>{S.prefs[k]=v;save();renderYou()};
+window.setKitchenEmail=v=>{S.prefs.syncEmail=v.trim();save();pullKitchenState(true)};
 window.youToggleCuisine=id=>{const a=S.prefs.cuisines;const i=a.indexOf(id);if(i>=0){if(a.length>1)a.splice(i,1)}else a.push(id);save();renderYou()};
 
 /* ---------- boot ---------- */
 if('serviceWorker' in navigator){try{navigator.serviceWorker.register('sw.js')}catch(e){}}
+if((new URLSearchParams(location.search)).get('kitchen')==='1'||localStorage.getItem('akk_kitchen_mode')==='1')SCREEN='kitchen';
 render();
+if(kitchenEmail())pullKitchenState(true);
